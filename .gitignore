@@ -1,0 +1,6 @@
+# .gitignore
+.build/
+.swiftpm/
+.DS_Store
+*.xcodeproj
+.vscode/
