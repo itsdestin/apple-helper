@@ -1,0 +1,27 @@
+<!-- Resources/Info.plist -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.youcoded.apple-helper</string>
+    <key>CFBundleName</key>
+    <string>apple-helper</string>
+    <key>CFBundleDisplayName</key>
+    <string>apple-helper</string>
+    <key>CFBundleVersion</key>
+    <string>0.1.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>NSCalendarsUsageDescription</key>
+    <string>YouCoded uses Calendar to show, create, and update events.</string>
+    <key>NSRemindersUsageDescription</key>
+    <string>YouCoded uses Reminders to show, create, and update reminders.</string>
+    <key>NSContactsUsageDescription</key>
+    <string>YouCoded uses Contacts to look up and update contact details.</string>
+    <key>NSCalendarsFullAccessUsageDescription</key>
+    <string>YouCoded uses Calendar to show, create, and update events.</string>
+    <key>NSRemindersFullAccessUsageDescription</key>
+    <string>YouCoded uses Reminders to show, create, and update reminders.</string>
+</dict>
+</plist>
