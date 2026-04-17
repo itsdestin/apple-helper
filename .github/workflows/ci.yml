@@ -1,0 +1,41 @@
+# CI — verifies every push / PR builds on macOS 14 (Swift's actual target
+# platform). Developers work from Windows/Linux and cannot run `swift build`
+# locally because the package imports EventKit and Contacts (Darwin-only).
+# This workflow is the first place blind-written Swift code is compiled.
+#
+# Tasks 1-10 of the apple-services plan build out this repo incrementally;
+# each commit must leave `swift build` green on macos-14. `swift test` runs
+# only once the Tests/ tree has Swift sources (added in Task 3). Until then
+# we skip tests rather than fail — the .testTarget declaration in
+# Package.swift warns but does not break `swift build`.
+#
+# macos-14 runner deprecation: Azure begins deprecating 2026-07-06 and
+# removes it 2026-11-02. Migrate to macos-15 before then (Phase 0 finding R6).
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Swift toolchain version
+        run: swift --version
+
+      - name: Build (debug)
+        run: swift build
+
+      - name: Test (if test sources exist)
+        run: |
+          if find Tests -name '*.swift' -type f 2>/dev/null | grep -q .; then
+            swift test
+          else
+            echo "No test sources in Tests/ yet — skipping swift test."
+          fi
