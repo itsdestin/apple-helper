@@ -16,14 +16,8 @@ struct RootCommand: ParsableCommand {
     )
 }
 
-// Placeholder subcommands so the package compiles before Task 5-7 fill them in.
-struct CalendarCommand: ParsableCommand {
-    static let configuration = CommandConfiguration(commandName: "calendar", abstract: "Calendar ops.")
-    @Argument(help: "Operation name (e.g. list_calendars)") var op: String
-    @Argument(parsing: .captureForPassthrough) var rest: [String] = []
-    mutating func run() throws { throw ValidationError("Calendar ops not wired yet — see Task 5.") }
-}
-
+// Placeholder subcommands so the package compiles before Task 6-8 fill them in.
+// CalendarCommand is defined in CalendarCommands.swift (wired in Task 5).
 struct RemindersCommand: ParsableCommand {
     static let configuration = CommandConfiguration(commandName: "reminders", abstract: "Reminders ops.")
     @Argument var op: String
