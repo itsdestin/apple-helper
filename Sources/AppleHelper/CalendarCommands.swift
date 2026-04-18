@@ -28,6 +28,16 @@ struct CalendarCommand: ParsableCommand {
 
     mutating func run() throws {
         let store = EKEventStore()
+        // TCC gate: EventKit read APIs return empty instead of erroring on denied
+        // access, and writes throw generic errors. Probe auth up front so the
+        // wrapper sees a clean TCC_DENIED marker instead of misleading "no events".
+        let authStatus = EKEventStore.authorizationStatus(for: .event)
+        guard authStatus == .fullAccess else {
+            HelperError.tccDenied(
+                service: "calendar",
+                message: "Calendar access not granted (status: \(authStatus.rawValue)). Run /apple-services-setup or grant in System Settings → Privacy & Security → Calendars."
+            ).writeAndExit()
+        }
         do {
             switch op {
             case "list_calendars":
@@ -148,9 +158,10 @@ struct CalendarCommand: ParsableCommand {
             }
         } catch let e as HelperError {
             e.writeAndExit()
-        } catch let e as EKError where e.code == .denied {
-            HelperError.tccDenied(service: "calendar", message: "Calendar access was denied.").writeAndExit()
         } catch {
+            // EventKit denial paths are handled by the upfront authStatus gate
+            // (EKError.Code has no `.denied` case — the plan assumed an API that
+            // doesn't exist). Anything reaching here is genuinely unexpected.
             HelperError.internalError(service: "calendar", message: String(describing: error)).writeAndExit()
         }
     }
