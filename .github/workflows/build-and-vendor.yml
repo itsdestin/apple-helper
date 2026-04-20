@@ -113,20 +113,23 @@ jobs:
           git config user.email "ci@youcoded.app"
           git checkout -b "$BRANCH"
           git add apple-services/bin/apple-helper apple-services/bin/apple-helper.sha256
-          git commit -m "vendor(apple-services): apple-helper v${VERSION}
-
-Upstream: itsdestin/apple-helper@${{ github.sha }}
-SHA256:   ${SHA}
-Size:     $(wc -c < apple-services/bin/apple-helper) bytes"
+          SIZE=$(wc -c < apple-services/bin/apple-helper)
+          git commit \
+            -m "vendor(apple-services): apple-helper v${VERSION}" \
+            -m "Upstream: itsdestin/apple-helper@${{ github.sha }}" \
+            -m "SHA256:   ${SHA}" \
+            -m "Size:     ${SIZE} bytes"
           git push -u origin "$BRANCH"
+          BODY=$(printf '%s\n' \
+            "Automated vendor PR from \`itsdestin/apple-helper\` release." \
+            "" \
+            "- Upstream tag: \`apple-helper-v${VERSION}\`" \
+            "- Upstream SHA: \`${{ github.sha }}\`" \
+            "- Binary SHA256: \`${SHA}\`" \
+            "" \
+            "Merge to ship the updated binary to users.")
           gh pr create \
             --title "vendor(apple-services): apple-helper v${VERSION}" \
-            --body "Automated vendor PR from \`itsdestin/apple-helper\` release.
-
-- Upstream tag: \`apple-helper-v${VERSION}\`
-- Upstream SHA: \`${{ github.sha }}\`
-- Binary SHA256: \`${SHA}\`
-
-Merge to ship the updated binary to users." \
+            --body "$BODY" \
             --base master \
             --head "$BRANCH"
