@@ -16,11 +16,8 @@ struct RootCommand: ParsableCommand {
     )
 }
 
-// Placeholder subcommands so the package compiles before Task 8 fills them in.
-// CalendarCommand is defined in CalendarCommands.swift (wired in Task 5).
-// RemindersCommand is defined in RemindersCommands.swift (wired in Task 6).
-// ContactsCommand is defined in ContactsCommands.swift (wired in Task 7).
-struct RequestPermissionsCommand: ParsableCommand {
-    static let configuration = CommandConfiguration(commandName: "request-permissions", abstract: "Serially request EventKit + Contacts permissions.")
-    mutating func run() throws { throw ValidationError("Permissions flow not wired yet — see Task 8.") }
-}
+// Subcommand implementations live alongside this file:
+//   CalendarCommands.swift     (Task 5)
+//   RemindersCommands.swift    (Task 6)
+//   ContactsCommands.swift     (Task 7)
+//   Permissions.swift          (Task 8 — RequestPermissionsCommand)
