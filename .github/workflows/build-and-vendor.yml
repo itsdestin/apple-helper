@@ -1,0 +1,132 @@
+# .github/workflows/build-and-vendor.yml
+#
+# Release pipeline for apple-helper.
+#
+# Trigger: push a git tag matching `apple-helper-v*` (or run manually via
+# workflow_dispatch). Produces a universal Mach-O binary (arm64 + x86_64)
+# on a macos-14 runner, ad-hoc signs it, computes SHA256, uploads as a
+# GitHub Actions artifact, then opens a vendor PR against
+# itsdestin/wecoded-marketplace copying the binary into
+# apple-services/bin/ for distribution to end users.
+#
+# Requires repo secret `MARKETPLACE_PAT` — fine-grained PAT scoped to
+# itsdestin/wecoded-marketplace with Contents: Read/Write and
+# Pull requests: Read/Write. Create at
+# https://github.com/settings/tokens?type=beta
+# then `gh secret set MARKETPLACE_PAT --repo itsdestin/apple-helper`.
+#
+# macos-14 deprecation: Azure begins 2026-07-06, full removal 2026-11-02.
+# Migrate to macos-15 before then (Phase 0 finding R6).
+
+name: Build universal binary and open vendor PR
+
+on:
+  push:
+    tags:
+      - 'apple-helper-v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      sha256: ${{ steps.sha.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#apple-helper-v}"
+          if [ "$GITHUB_REF_TYPE" != "tag" ]; then
+            VERSION="0.0.0-dev-${GITHUB_SHA::7}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+
+      - name: Build universal binary
+        run: |
+          # Per Phase 0 R6: single command produces a fat Mach-O at
+          # .build/apple/Products/Release/<product> (NOT .build/release/).
+          swift build -c release --arch arm64 --arch x86_64
+          mkdir -p dist
+          cp .build/apple/Products/Release/apple-helper dist/apple-helper
+          lipo -info dist/apple-helper
+
+      - name: Ad-hoc sign
+        run: codesign --force --sign - dist/apple-helper
+
+      - name: Verify signature + architectures
+        run: |
+          codesign -vvv dist/apple-helper
+          lipo -info dist/apple-helper | grep -q 'arm64' && lipo -info dist/apple-helper | grep -q 'x86_64'
+
+      - name: Compute SHA256
+        id: sha
+        run: |
+          SHA=$(shasum -a 256 dist/apple-helper | cut -d' ' -f1)
+          echo "$SHA" > dist/apple-helper.sha256
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apple-helper-universal
+          path: dist/
+
+  vendor-pr:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/apple-helper-v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out wecoded-marketplace
+        uses: actions/checkout@v4
+        with:
+          repository: itsdestin/wecoded-marketplace
+          token: ${{ secrets.MARKETPLACE_PAT }}
+          path: marketplace
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: apple-helper-universal
+          path: artifact
+
+      - name: Copy binary into plugin tree
+        run: |
+          mkdir -p marketplace/apple-services/bin
+          cp artifact/apple-helper marketplace/apple-services/bin/apple-helper
+          cp artifact/apple-helper.sha256 marketplace/apple-services/bin/apple-helper.sha256
+          chmod +x marketplace/apple-services/bin/apple-helper
+
+      - name: Create branch + PR
+        env:
+          GH_TOKEN: ${{ secrets.MARKETPLACE_PAT }}
+          VERSION: ${{ needs.build.outputs.version }}
+          SHA: ${{ needs.build.outputs.sha256 }}
+        run: |
+          cd marketplace
+          BRANCH="vendor/apple-helper-v${VERSION}"
+          git config user.name "apple-helper CI"
+          git config user.email "ci@youcoded.app"
+          git checkout -b "$BRANCH"
+          git add apple-services/bin/apple-helper apple-services/bin/apple-helper.sha256
+          git commit -m "vendor(apple-services): apple-helper v${VERSION}
+
+Upstream: itsdestin/apple-helper@${{ github.sha }}
+SHA256:   ${SHA}
+Size:     $(wc -c < apple-services/bin/apple-helper) bytes"
+          git push -u origin "$BRANCH"
+          gh pr create \
+            --title "vendor(apple-services): apple-helper v${VERSION}" \
+            --body "Automated vendor PR from \`itsdestin/apple-helper\` release.
+
+- Upstream tag: \`apple-helper-v${VERSION}\`
+- Upstream SHA: \`${{ github.sha }}\`
+- Binary SHA256: \`${SHA}\`
+
+Merge to ship the updated binary to users." \
+            --base master \
+            --head "$BRANCH"
